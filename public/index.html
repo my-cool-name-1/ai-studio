@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Studio</title>
+<style>
+:root{--bg:#faf9f5;--card:#fff;--text:#1f1e1d;--muted:#73726c;--line:#e3e0d8;--accent:#c96442}
+@media (prefers-color-scheme:dark){:root{--bg:#262624;--card:#30302e;--text:#f1efe8;--muted:#a3a198;--line:#454440}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+nav{display:flex;gap:8px;margin-bottom:14px}
+nav button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;font:inherit;cursor:pointer}
+nav button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+section{display:none}section.on{display:block}
+textarea,input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit}
+.go{margin-top:8px;width:100%;padding:12px;border:0;border-radius:12px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.go:disabled{opacity:.5}
+#log{min-height:200px;margin-bottom:10px}
+.m{padding:10px 14px;border-radius:14px;margin:0 0 10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.m.u{background:var(--card);border:1px solid var(--line);margin-left:auto;width:fit-content;max-width:88%}
+img,video{width:100%;border-radius:14px;margin-top:12px}
+.s{color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <button class="on" data-t="chat">Chat</button>
+    <button data-t="image">Image</button>
+    <button data-t="video">Video</button>
+    <button data-t="voice" id="vtab">Voice</button>
+  </nav>
+
+  <section id="chat" class="on">
+    <div id="log"></div>
+    <textarea id="cin" rows="2" placeholder="Kuch bhi poochho…"></textarea>
+    <button class="go" id="cgo">Bhejo</button>
+  </section>
+
+  <section id="image">
+    <textarea id="iin" rows="3" placeholder="Image describe karo, jaise: sunrise par Himalaya, cinematic, 4k"></textarea>
+    <button class="go" id="igo">Image banao</button>
+    <div id="iout"></div>
+  </section>
+
+  <section id="video">
+    <textarea id="vin" rows="3" placeholder="Video describe karo, jaise: ek sher jungle mein daudta hua, slow motion"></textarea>
+    <input type="file" id="vfile" accept="image/*" style="margin-top:8px">
+    <img id="vprev" style="display:none;max-width:160px">
+    <p class="s">Optional: reference image daalo, video usi image se shuru hoga.</p>
+    <button class="go" id="vgo">Video banao</button>
+    <div id="vout"></div>
+  </section>
+
+  <section id="voice">
+    <select id="vsel" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit;margin-bottom:8px"><option>Voices load ho rahi hain…</option></select>
+    <textarea id="tin" rows="5" placeholder="Jo bulwana hai wo likho (Hindi, Hinglish ya English)…"></textarea>
+    <button class="go" id="tgo">Awaaz banao</button>
+    <div id="tout"></div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let key = localStorage.getItem('ak') || '';
+
+async function api(path, body) {
+  const opt = body ? { method: 'POST', body: JSON.stringify(body) } : {};
+  const r = await fetch('/api' + path, { ...opt, headers: { 'Content-Type': 'application/json', 'x-access-key': key } });
+  if (r.status === 401) {
+    key = prompt('Access key daalo:') || '';
+    localStorage.setItem('ak', key);
+    return api(path, body);
+  }
+  return r.json();
+}
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button,section').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); $(b.dataset.t).classList.add('on');
+});
+
+// Chat
+const hist = [];
+function bubble(cls, text) {
+  const d = document.createElement('div'); d.className = 'm ' + cls; d.textContent = text;
+  $('log').appendChild(d); return d;
+}
+$('cgo').onclick = async () => {
+  const t = $('cin').value.trim(); if (!t) return;
+  $('cin').value = ''; bubble('u', t); hist.push({ role: 'user', content: t });
+  const b = bubble('a', '…'); $('cgo').disabled = true;
+  const r = await api('/chat', { messages: hist });
+  b.textContent = r.text || r.error || 'Error';
+  if (r.text) hist.push({ role: 'assistant', content: r.text }); else hist.pop();
+  $('cgo').disabled = false;
+};
+
+// Image + Video (job polling)
+function media(kind, url) {
+  const el = document.createElement(kind === 'image' ? 'img' : 'video');
+  el.src = url; if (kind === 'video') { el.controls = true; el.autoplay = true; el.loop = true; el.muted = true; el.playsInline = true; }
+  return el;
+}
+let refImg = null;
+$('vfile').onchange = e => {
+  const f = e.target.files[0]; if (!f) { refImg = null; $('vprev').style.display = 'none'; return; }
+  const im = new Image(); im.onload = () => {
+    const k = Math.min(1, 1280 / Math.max(im.width, im.height));
+    const c = document.createElement('canvas'); c.width = im.width * k; c.height = im.height * k;
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    refImg = c.toDataURL('image/jpeg', 0.9); $('vprev').src = refImg; $('vprev').style.display = 'block';
+  }; im.src = URL.createObjectURL(f);
+};
+function job(kind, inId, goId, outId) {
+  $(goId).onclick = async () => {
+    const p = $(inId).value.trim(); if (!p) return;
+    const out = $(outId); const btn = $(goId);
+    btn.disabled = true; out.innerHTML = '<p class="s">Ban raha hai…</p>';
+    let r = await api('/' + kind, { prompt: p, image: kind === 'video' ? refImg : undefined });
+    for (let i = 0; i < 120 && r.id && !r.url && !r.error && !['failed', 'canceled'].includes(r.status); i++) {
+      await new Promise(s => setTimeout(s, 3000));
+      r = await api('/status/' + r.id);
+    }
+    out.innerHTML = '';
+    if (r.url) {
+      out.appendChild(media(kind, r.url));
+      const a = document.createElement('a'); a.href = r.url; a.target = '_blank'; a.textContent = 'Download / Open';
+      a.className = 's'; a.style.display = 'block'; out.appendChild(a);
+    } else out.innerHTML = '<p class="s">Nahi bana: ' + String(r.error || 'unknown error').replace(/</g, '&lt;') + '</p>';
+    btn.disabled = false;
+  };
+}
+job('image', 'iin', 'igo', 'iout');
+job('video', 'vin', 'vgo', 'vout');
+
+// Voice
+let voicesLoaded = false;
+$('vtab').addEventListener('click', async () => {
+  if (voicesLoaded) return;
+  const r = await api('/voices');
+  if (r.voices) {
+    voicesLoaded = true;
+    $('vsel').innerHTML = '';
+    r.voices.forEach(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.name; $('vsel').appendChild(o); });
+  } else $('vsel').innerHTML = '<option>' + String(r.error || 'Error').replace(/</g, '&lt;') + '</option>';
+});
+$('tgo').onclick = async () => {
+  const text = $('tin').value.trim(); if (!text || !voicesLoaded) return;
+  $('tgo').disabled = true; $('tout').innerHTML = '<p class="s">Awaaz ban rahi hai…</p>';
+  const r = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-access-key': key }, body: JSON.stringify({ text, voice: $('vsel').value }) });
+  if (r.ok) {
+    const url = URL.createObjectURL(await r.blob());
+    $('tout').innerHTML = '<audio controls autoplay style="width:100%;margin-top:12px" src="' + url + '"></audio><a class="s" style="display:block" download="voice.mp3" href="' + url + '">Download MP3</a>';
+  } else {
+    const d = await r.json().catch(() => ({}));
+    $('tout').innerHTML = '<p class="s">Nahi bani: ' + String(d.error || r.status).replace(/</g, '&lt;') + '</p>';
+  }
+  $('tgo').disabled = false;
+};
+</script>
+</body>
+</html>
