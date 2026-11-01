@@ -33,6 +33,7 @@ img,video{width:100%;border-radius:14px;margin-top:12px}
     <button data-t="voice" id="vtab">Voice</button>
     <button data-t="dub">Dub</button>
     <button data-t="clone">Clone</button>
+    <button data-t="project">Project</button>
     <button data-t="keys">Key</button>
   </nav>
 
@@ -96,6 +97,20 @@ img,video{width:100%;border-radius:14px;margin-top:12px}
     </label>
     <button class="go" id="cgo2">Clone banao</button>
     <div id="cout"></div>
+  </section>
+
+  <section id="project">
+    <p class="s" style="margin-top:0"><b>Prompt se pura video project.</b> Neeche apna idea/prompt likho, kitne voice character chahiye wo chuno, har character ka naam aur unki awaaz ka sample yahan jodo. Phir <b>"Brief banao"</b> dabao — ek taiyaar brief ban jayegi. <b>Us brief ko + sample files ko mujhe (YADAV JI ko) chat me bhej dena</b> — characters ki awaazein clone karke, video bana kar, edit karke mai dunga. (Ye kaam website ke andar auto nahi hota — asal production mere yahan hoti hai, ye hissa sirf project taiyaar karke deta hai.)</p>
+    <textarea id="ptext" rows="4" placeholder="Prompt: kaisa video chahiye? Kahani, mood, kitni lambi, kis ke liye..."></textarea>
+    <label class="s" style="display:block;margin-top:10px">Kitne voice character?</label>
+    <select id="pcount" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit">
+      <option>1</option><option>2</option><option>3</option><option>4</option>
+      <option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+    </select>
+    <div id="pchars" style="margin-top:10px"></div>
+    <p class="s">Sample sirf unhi awaazon ke do jinke liye ijazat hai — apni awaaz ya character artist ki ijazat wali.</p>
+    <button class="go" id="pgo">Brief banao</button>
+    <div id="pout"></div>
   </section>
 
   <section id="keys">
@@ -287,6 +302,39 @@ $('cgo2').onclick = async () => {
   }
   $('cgo2').disabled = false;
 };
+// Project brief (prompt + characters + samples) — production YADAV JI ke yahan hoti hai
+function renderChars() {
+  const n = parseInt($('pcount').value, 10);
+  const box = $('pchars'); box.innerHTML = '';
+  for (let i = 1; i <= n; i++) {
+    const d = document.createElement('div');
+    d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;background:var(--card)';
+    d.innerHTML = '<input placeholder="Character ' + i + ' ka naam (jaise: Narrator, Hero, Villain)" id="pcn' + i + '" style="margin-bottom:6px">' +
+      '<input type="file" accept="audio/*" id="pcf' + i + '">';
+    box.appendChild(d);
+  }
+}
+$('pcount').onchange = renderChars;
+renderChars();
+$('pgo').onclick = () => {
+  const prompt = $('ptext').value.trim();
+  if (!prompt) { $('pout').innerHTML = '<p class="s">Pehle prompt likho.</p>'; return; }
+  const n = parseInt($('pcount').value, 10);
+  let lines = ['🎬 VIDEO PROJECT BRIEF', '', 'Prompt: ' + prompt, '', 'Characters: ' + n];
+  for (let i = 1; i <= n; i++) {
+    const nm = ($('pcn' + i).value || 'Character ' + i).trim();
+    const fl = $('pcf' + i).files[0];
+    lines.push(i + '. ' + nm + ' — sample: ' + (fl ? fl.name + ' (' + Math.round(fl.size / 1024) + ' KB)' : 'sample nahi joda'));
+  }
+  lines.push('', 'Note: sample files is brief ke saath chat me bhejne hain.');
+  const brief = lines.join('\n');
+  $('pout').innerHTML = '<textarea rows="10" readonly id="pbrief"></textarea>' +
+    '<button class="go" id="pcopy" style="margin-top:8px">Brief copy karo</button>' +
+    '<p class="s">Is brief ko copy karke + saare sample files ko mujhe (YADAV JI ko) chat me bhej do — video mai bana kar dunga.</p>';
+  $('pbrief').value = brief;
+  $('pcopy').onclick = async () => { try { await navigator.clipboard.writeText(brief); $('pcopy').textContent = '✅ Copy ho gaya'; } catch (e) { $('pbrief').select(); document.execCommand('copy'); $('pcopy').textContent = '✅ Copy ho gaya'; } };
+};
+
 // Keys (sirf is phone ke browser me save hoti hain)
 $('kel').value = localStorage.getItem('elk') || '';
 $('kan').value = localStorage.getItem('ank') || '';
