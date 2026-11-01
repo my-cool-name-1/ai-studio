@@ -10,8 +10,8 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,sans-serif}
 main{max-width:760px;margin:0 auto;padding:16px}
-nav{display:flex;gap:8px;margin-bottom:14px}
-nav button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;font:inherit;cursor:pointer}
+nav{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+nav button{flex:1 1 28%;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;font:inherit;cursor:pointer}
 nav button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 section{display:none}section.on{display:block}
 textarea,input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit}
@@ -31,6 +31,8 @@ img,video{width:100%;border-radius:14px;margin-top:12px}
     <button data-t="image">Image</button>
     <button data-t="video">Video</button>
     <button data-t="voice" id="vtab">Voice</button>
+    <button data-t="dub">Dub</button>
+    <button data-t="clone">Clone</button>
   </nav>
 
   <section id="chat" class="on">
@@ -59,6 +61,39 @@ img,video{width:100%;border-radius:14px;margin-top:12px}
     <textarea id="tin" rows="5" placeholder="Jo bulwana hai wo likho (Hindi, Hinglish ya English)…"></textarea>
     <button class="go" id="tgo">Awaaz banao</button>
     <div id="tout"></div>
+  </section>
+
+  <section id="dub">
+    <p class="s" style="margin-top:0">Video ya audio daalo, dusri bhasha me dub ho jayega. Chhoti file rakho (max ~3MB) — bade video free hosting ki limit se atak sakte hain.</p>
+    <input type="file" id="dfile" accept="video/*,audio/*">
+    <select id="dlang" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit;margin:8px 0">
+      <option value="hi">Hindi me dub karo</option>
+      <option value="en">English me dub karo</option>
+      <option value="es">Spanish</option>
+      <option value="fr">French</option>
+      <option value="de">German</option>
+      <option value="pt">Portuguese</option>
+      <option value="ar">Arabic</option>
+      <option value="bn">Bengali</option>
+      <option value="ta">Tamil</option>
+      <option value="te">Telugu</option>
+      <option value="mr">Marathi</option>
+      <option value="pa">Punjabi</option>
+    </select>
+    <button class="go" id="dgo">Dub karo</button>
+    <div id="dout"></div>
+  </section>
+
+  <section id="clone">
+    <p class="s" style="margin-top:0"><b>Sirf apni awaaz clone karo.</b> 1–3 minute ki saaf recording daalo (bina background music ke). Kisi aur ki awaaz bina ijazat ke clone karna galat hai — ye option sirf tumhari apni awaaz ke liye hai.</p>
+    <input id="cname" placeholder="Voice ka naam, jaise: Meri Awaaz">
+    <input type="file" id="cfile" accept="audio/*" style="margin-top:8px">
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:15px">
+      <input type="checkbox" id="cconsent" style="width:auto;margin-top:4px">
+      <span>Confirm karta hu: ye meri apni awaaz hai, ya jinki hai unki puri ijazat hai.</span>
+    </label>
+    <button class="go" id="cgo2">Clone banao</button>
+    <div id="cout"></div>
   </section>
 </main>
 <script>
@@ -136,8 +171,7 @@ job('image', 'iin', 'igo', 'iout');
 job('video', 'vin', 'vgo', 'vout');
 
 // Voice
-let voicesLoaded = false;
-$('vtab').addEventListener('click', async () => {
+let voicesLoaded = false;$('vtab').addEventListener('click', async () => {
   if (voicesLoaded) return;
   const r = await api('/voices');
   if (r.voices) {
@@ -158,6 +192,74 @@ $('tgo').onclick = async () => {
     $('tout').innerHTML = '<p class="s">Nahi bani: ' + String(d.error || r.status).replace(/</g, '&lt;') + '</p>';
   }
   $('tgo').disabled = false;
+};
+
+// File ko base64 me badlo (chhoti files ke liye)
+function fileB64(file) {
+  return new Promise((ok, bad) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(',')[1]);
+    r.onerror = bad;
+    r.readAsDataURL(file);
+  });
+}
+async function apiRetry(path, body) {
+  let r = await api(path, body);
+  return r;
+}
+
+// Dub
+$('dgo').onclick = async () => {
+  const f = $('dfile').files[0];
+  if (!f) { $('dout').innerHTML = '<p class="s">Pehle file chuno.</p>'; return; }
+  if (f.size > 3 * 1024 * 1024) { $('dout').innerHTML = '<p class="s">File badi hai (max ~3MB). Chhota clip daalo.</p>'; return; }
+  $('dgo').disabled = true; $('dout').innerHTML = '<p class="s">Upload ho raha hai…</p>';
+  try {
+    const b64 = await fileB64(f);
+    let r = await api('/dub', { fileBase64: b64, mime: f.type, filename: f.name, targetLang: $('dlang').value });
+    if (!r.dubbing_id) throw new Error(r.error || 'Dub shuru nahi hua');
+    const dubId = r.dubbing_id, lang = $('dlang').value;
+    $('dout').innerHTML = '<p class="s">Dubbing chal rahi hai… thoda time lagega.</p>';
+    let done = false;
+    for (let i = 0; i < 100 && !done; i++) {
+      await new Promise(s => setTimeout(s, 5000));
+      r = await api('/dub-status/' + dubId);
+      if (r.status === 'dubbed') done = true;
+      else if (r.status === 'failed') throw new Error(r.error || 'Dubbing fail');
+    }
+    if (!done) throw new Error('Bahut time ho gaya, dubbing puri nahi hui');
+    $('dout').innerHTML = '<p class="s">Dub taiyaar hai — neeche se suno ya download karo.</p>';
+    const resp = await fetch('/api/dub-audio/' + dubId + '/' + lang, { headers: { 'x-access-key': key } });
+    if (!resp.ok) throw new Error('Dubbed file download nahi hui');
+    const url = URL.createObjectURL(await resp.blob());
+    const v = document.createElement('video'); v.src = url; v.controls = true; v.style.width = '100%';
+    $('dout').appendChild(v);
+    const a = document.createElement('a'); a.href = url; a.download = 'dubbed'; a.textContent = 'Download dubbed file'; a.className = 's'; a.style.display = 'block';
+    $('dout').appendChild(a);
+  } catch (e) {
+    $('dout').innerHTML = '<p class="s">Nahi hua: ' + String(e.message || e).replace(/</g, '&lt;') + '</p>';
+  }
+  $('dgo').disabled = false;
+};
+// Clone (sirf apni awaaz)
+$('cgo2').onclick = async () => {
+  const f = $('cfile').files[0];
+  const name = $('cname').value.trim();
+  if (!name) { $('cout').innerHTML = '<p class="s">Voice ka naam likho.</p>'; return; }
+  if (!f) { $('cout').innerHTML = '<p class="s">Audio sample chuno.</p>'; return; }
+  if (!$('cconsent').checked) { $('cout').innerHTML = '<p class="s">Pehle neeche wala confirm wala box tick karo.</p>'; return; }
+  if (f.size > 3 * 1024 * 1024) { $('cout').innerHTML = '<p class="s">Sample bada hai (max ~3MB). Chhota saaf sample daalo.</p>'; return; }
+  $('cgo2').disabled = true; $('cout').innerHTML = '<p class="s">Clone ban raha hai…</p>';
+  try {
+    const b64 = await fileB64(f);
+    const r = await api('/clone', { name, audioBase64: b64, mime: f.type, consent: true });
+    if (!r.voice_id) throw new Error(r.error || 'Clone nahi bana');
+    voicesLoaded = false;
+    $('cout').innerHTML = '<p class="s">✅ Clone ban gaya! Voice wale tab me awaazon ki list me ye nayi awaaz dikhegi (Voice tab kholne par list refresh hogi).' + (r.requires_verification ? ' Note: ElevenLabs ko ek chhoti si verification chahiye ho sakti hai — wo unki apni site par hoti hai.' : '') + '</p>';
+  } catch (e) {
+    $('cout').innerHTML = '<p class="s">Nahi bana: ' + String(e.message || e).replace(/</g, '&lt;') + '</p>';
+  }
+  $('cgo2').disabled = false;
 };
 </script>
 </body>
