@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '6mb' }));
 app.use(express.static('public'));
 
 const {
@@ -110,6 +110,60 @@ app.post('/api/voice', async (req, res) => {
       return res.status(500).json({ error: d.detail?.message || 'ElevenLabs error ' + r.status });
     }
     res.set('Content-Type', 'audio/mpeg').send(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+
+// ---- Dubbing (ElevenLabs) — video/audio ko dusri bhasha me dub ----
+const b64file = (b64, mime, name) => new Blob([Buffer.from(b64, 'base64')], { type: mime || 'application/octet-stream' });
+
+app.post('/api/dub', async (req, res) => {
+  try {
+    const { fileBase64, mime, filename, targetLang } = req.body || {};
+    if (!fileBase64 || !targetLang) return res.status(400).json({ error: 'File aur target language chuno' });
+    const form = new FormData();
+    form.append('file', b64file(fileBase64, mime, filename || 'input'), filename || 'input.mp4');
+    form.append('target_lang', String(targetLang).slice(0, 8));
+    form.append('mode', 'automatic');
+    const r = await fetch(EL + '/dubbing', { method: 'POST', headers: { 'xi-api-key': ELEVENLABS_API_KEY }, body: form });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(500).json({ error: d.detail?.message || d.detail || 'Dubbing error ' + r.status });
+    res.json({ dubbing_id: d.dubbing_id, expected_duration_sec: d.expected_duration_sec || null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/dub-status/:id', async (req, res) => {
+  try {
+    const r = await fetch(EL + '/dubbing/' + encodeURIComponent(req.params.id), { headers: { 'xi-api-key': ELEVENLABS_API_KEY } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(500).json({ error: d.detail?.message || 'Status error ' + r.status });
+    res.json({ status: d.status, error: d.error || null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/dub-audio/:id/:lang', async (req, res) => {
+  try {
+    const r = await fetch(EL + '/dubbing/' + encodeURIComponent(req.params.id) + '/audio/' + encodeURIComponent(req.params.lang), { headers: { 'xi-api-key': ELEVENLABS_API_KEY } });
+    if (!r.ok) return res.status(500).json({ error: 'Dubbed file nahi mili ' + r.status });
+    res.set('Content-Type', r.headers.get('content-type') || 'application/octet-stream').send(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- Voice Clone (ElevenLabs IVC) — SIRF apni awaaz, ijazat ke saath ----
+app.post('/api/clone', async (req, res) => {
+  try {
+    const { name, description, audioBase64, mime, consent } = req.body || {};
+    if (consent !== true) return res.status(400).json({ error: 'Pehle confirm karo: ye tumhari apni awaaz hai ya ijazat hai' });
+    if (!name || !audioBase64) return res.status(400).json({ error: 'Voice ka naam aur audio sample chahiye' });
+    const form = new FormData();
+    form.append('name', String(name).slice(0, 100));
+    if (description) form.append('description', String(description).slice(0, 500));
+    form.append('files', b64file(audioBase64, mime, 'sample'), 'sample' + ((mime || '').includes('wav') ? '.wav' : '.mp3'));
+    const r = await fetch(EL + '/voices/add', { method: 'POST', headers: { 'xi-api-key': ELEVENLABS_API_KEY }, body: form });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(500).json({ error: d.detail?.message || d.detail || 'Clone error ' + r.status });
+    res.json({ voice_id: d.voice_id, requires_verification: !!d.requires_verification });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
