@@ -33,6 +33,7 @@ img,video{width:100%;border-radius:14px;margin-top:12px}
     <button data-t="voice" id="vtab">Voice</button>
     <button data-t="dub">Dub</button>
     <button data-t="clone">Clone</button>
+    <button data-t="keys">Key</button>
   </nav>
 
   <section id="chat" class="on">
@@ -95,14 +96,32 @@ img,video{width:100%;border-radius:14px;margin-top:12px}
     <button class="go" id="cgo2">Clone banao</button>
     <div id="cout"></div>
   </section>
+
+  <section id="keys">
+    <p class="s" style="margin-top:0">Apni API keys yahan daalo — ye <b>sirf tumhare phone ke browser me</b> save hoti hain, kahin aur nahi jati. Jab chaaho badal sakte ho. Khali chhodo to site ki apni key (agar lagi hai) chalegi.</p>
+    <label class="s">ElevenLabs API Key (Voice / Dub / Clone ke liye)</label>
+    <input type="password" id="kel" placeholder="sk_..." autocomplete="off">
+    <label class="s" style="display:block;margin-top:12px">Anthropic API Key (Chat ke liye)</label>
+    <input type="password" id="kan" placeholder="sk-ant-..." autocomplete="off">
+    <label class="s" style="display:block;margin-top:12px">Replicate API Token (Image / Video ke liye)</label>
+    <input type="password" id="krp" placeholder="r8_..." autocomplete="off">
+    <button class="go" id="ksave">Keys save karo</button>
+    <div id="kout"></div>
+    <p class="s">ElevenLabs key kahan milegi: elevenlabs.io par apna account banao → upar profile wala hissa → API Key. Apni key kisi ke saath share mat karna.</p>
+  </section>
 </main>
 <script>
 const $ = id => document.getElementById(id);
 let key = localStorage.getItem('ak') || '';
+const myKeys = () => ({
+  'x-elevenlabs-key': localStorage.getItem('elk') || '',
+  'x-anthropic-key': localStorage.getItem('ank') || '',
+  'x-replicate-key': localStorage.getItem('rpk') || '',
+});
 
 async function api(path, body) {
   const opt = body ? { method: 'POST', body: JSON.stringify(body) } : {};
-  const r = await fetch('/api' + path, { ...opt, headers: { 'Content-Type': 'application/json', 'x-access-key': key } });
+  const r = await fetch('/api' + path, { ...opt, headers: { 'Content-Type': 'application/json', 'x-access-key': key, ...myKeys() } });
   if (r.status === 401) {
     key = prompt('Access key daalo:') || '';
     localStorage.setItem('ak', key);
@@ -183,7 +202,7 @@ let voicesLoaded = false;$('vtab').addEventListener('click', async () => {
 $('tgo').onclick = async () => {
   const text = $('tin').value.trim(); if (!text || !voicesLoaded) return;
   $('tgo').disabled = true; $('tout').innerHTML = '<p class="s">Awaaz ban rahi hai…</p>';
-  const r = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-access-key': key }, body: JSON.stringify({ text, voice: $('vsel').value }) });
+  const r = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-access-key': key, ...myKeys() }, body: JSON.stringify({ text, voice: $('vsel').value }) });
   if (r.ok) {
     const url = URL.createObjectURL(await r.blob());
     $('tout').innerHTML = '<audio controls autoplay style="width:100%;margin-top:12px" src="' + url + '"></audio><a class="s" style="display:block" download="voice.mp3" href="' + url + '">Download MP3</a>';
@@ -229,7 +248,7 @@ $('dgo').onclick = async () => {
     }
     if (!done) throw new Error('Bahut time ho gaya, dubbing puri nahi hui');
     $('dout').innerHTML = '<p class="s">Dub taiyaar hai — neeche se suno ya download karo.</p>';
-    const resp = await fetch('/api/dub-audio/' + dubId + '/' + lang, { headers: { 'x-access-key': key } });
+    const resp = await fetch('/api/dub-audio/' + dubId + '/' + lang, { headers: { 'x-access-key': key, ...myKeys() } });
     if (!resp.ok) throw new Error('Dubbed file download nahi hui');
     const url = URL.createObjectURL(await resp.blob());
     const v = document.createElement('video'); v.src = url; v.controls = true; v.style.width = '100%';
@@ -260,6 +279,17 @@ $('cgo2').onclick = async () => {
     $('cout').innerHTML = '<p class="s">Nahi bana: ' + String(e.message || e).replace(/</g, '&lt;') + '</p>';
   }
   $('cgo2').disabled = false;
+};
+// Keys (sirf is phone ke browser me save hoti hain)
+$('kel').value = localStorage.getItem('elk') || '';
+$('kan').value = localStorage.getItem('ank') || '';
+$('krp').value = localStorage.getItem('rpk') || '';
+$('ksave').onclick = () => {
+  localStorage.setItem('elk', $('kel').value.trim());
+  localStorage.setItem('ank', $('kan').value.trim());
+  localStorage.setItem('rpk', $('krp').value.trim());
+  voicesLoaded = false;
+  $('kout').innerHTML = '<p class="s">✅ Keys save ho gayi. Ab Voice / Dub / Clone tumhari apni key se chalenge.</p>';
 };
 </script>
 </body>
