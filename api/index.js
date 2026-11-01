@@ -22,11 +22,16 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-const rep = (path, opts = {}) =>
+// User apni key bhej sakta hai (site ke Key wale hisse se) — wo env wali key se upar rahegi
+const elKey = req => req.get('x-elevenlabs-key') || ELEVENLABS_API_KEY;
+const anKey = req => req.get('x-anthropic-key') || ANTHROPIC_API_KEY;
+const rpKey = req => req.get('x-replicate-key') || REPLICATE_API_TOKEN;
+
+const rep = (path, opts = {}, token) =>
   fetch('https://api.replicate.com/v1' + path, {
     ...opts,
     headers: {
-      Authorization: 'Bearer ' + REPLICATE_API_TOKEN,
+      Authorization: 'Bearer ' + (token || REPLICATE_API_TOKEN),
       'Content-Type': 'application/json',
       ...opts.headers,
     },
@@ -49,7 +54,7 @@ const start = (model, imgField) => async (req, res) => {
       method: 'POST',
       headers: { Prefer: 'wait=30' },
       body: JSON.stringify({ input }),
-    });
+    }, rpKey(req));
     res.json(shape(p));
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -58,7 +63,7 @@ app.post('/api/image', start(IMAGE_MODEL));
 app.post('/api/video', start(VIDEO_MODEL, VIDEO_IMAGE_FIELD));
 
 app.get('/api/status/:id', async (req, res) => {
-  try { res.json(shape(await rep('/predictions/' + encodeURIComponent(req.params.id)))); }
+  try { res.json(shape(await rep('/predictions/' + encodeURIComponent(req.params.id), {}, rpKey(req)))); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -67,7 +72,7 @@ app.post('/api/chat', async (req, res) => {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': anKey(req),
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
@@ -89,7 +94,7 @@ app.post('/api/chat', async (req, res) => {
 const EL = 'https://api.elevenlabs.io/v1';
 app.get('/api/voices', async (req, res) => {
   try {
-    const r = await fetch(EL + '/voices', { headers: { 'xi-api-key': ELEVENLABS_API_KEY } });
+    const r = await fetch(EL + '/voices', { headers: { 'xi-api-key': elKey(req) } });
     const d = await r.json();
     if (!r.ok) return res.status(500).json({ error: d.detail?.message || 'ElevenLabs error' });
     res.json({ voices: d.voices.map(v => ({ id: v.voice_id, name: v.name })) });
@@ -102,7 +107,7 @@ app.post('/api/voice', async (req, res) => {
     if (!text || !req.body.voice) return res.status(400).json({ error: 'Text aur voice chuno' });
     const r = await fetch(EL + '/text-to-speech/' + encodeURIComponent(req.body.voice), {
       method: 'POST',
-      headers: { 'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+      headers: { 'xi-api-key': elKey(req), 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
       body: JSON.stringify({ text, model_id: VOICE_MODEL }),
     });
     if (!r.ok) {
@@ -126,7 +131,7 @@ app.post('/api/dub', async (req, res) => {
     form.append('file', b64file(fileBase64, mime, filename || 'input'), filename || 'input.mp4');
     form.append('target_lang', String(targetLang).slice(0, 8));
     form.append('mode', 'automatic');
-    const r = await fetch(EL + '/dubbing', { method: 'POST', headers: { 'xi-api-key': ELEVENLABS_API_KEY }, body: form });
+    const r = await fetch(EL + '/dubbing', { method: 'POST', headers: { 'xi-api-key': elKey(req) }, body: form });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return res.status(500).json({ error: d.detail?.message || d.detail || 'Dubbing error ' + r.status });
     res.json({ dubbing_id: d.dubbing_id, expected_duration_sec: d.expected_duration_sec || null });
@@ -135,7 +140,7 @@ app.post('/api/dub', async (req, res) => {
 
 app.get('/api/dub-status/:id', async (req, res) => {
   try {
-    const r = await fetch(EL + '/dubbing/' + encodeURIComponent(req.params.id), { headers: { 'xi-api-key': ELEVENLABS_API_KEY } });
+    const r = await fetch(EL + '/dubbing/' + encodeURIComponent(req.params.id), { headers: { 'xi-api-key': elKey(req) } });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return res.status(500).json({ error: d.detail?.message || 'Status error ' + r.status });
     res.json({ status: d.status, error: d.error || null });
@@ -144,7 +149,7 @@ app.get('/api/dub-status/:id', async (req, res) => {
 
 app.get('/api/dub-audio/:id/:lang', async (req, res) => {
   try {
-    const r = await fetch(EL + '/dubbing/' + encodeURIComponent(req.params.id) + '/audio/' + encodeURIComponent(req.params.lang), { headers: { 'xi-api-key': ELEVENLABS_API_KEY } });
+    const r = await fetch(EL + '/dubbing/' + encodeURIComponent(req.params.id) + '/audio/' + encodeURIComponent(req.params.lang), { headers: { 'xi-api-key': elKey(req) } });
     if (!r.ok) return res.status(500).json({ error: 'Dubbed file nahi mili ' + r.status });
     res.set('Content-Type', r.headers.get('content-type') || 'application/octet-stream').send(Buffer.from(await r.arrayBuffer()));
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -160,7 +165,7 @@ app.post('/api/clone', async (req, res) => {
     form.append('name', String(name).slice(0, 100));
     if (description) form.append('description', String(description).slice(0, 500));
     form.append('files', b64file(audioBase64, mime, 'sample'), 'sample' + ((mime || '').includes('wav') ? '.wav' : '.mp3'));
-    const r = await fetch(EL + '/voices/add', { method: 'POST', headers: { 'xi-api-key': ELEVENLABS_API_KEY }, body: form });
+    const r = await fetch(EL + '/voices/add', { method: 'POST', headers: { 'xi-api-key': elKey(req) }, body: form });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return res.status(500).json({ error: d.detail?.message || d.detail || 'Clone error ' + r.status });
     res.json({ voice_id: d.voice_id, requires_verification: !!d.requires_verification });
