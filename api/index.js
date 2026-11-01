@@ -125,10 +125,11 @@ const b64file = (b64, mime, name) => new Blob([Buffer.from(b64, 'base64')], { ty
 
 app.post('/api/dub', async (req, res) => {
   try {
-    const { fileBase64, mime, filename, targetLang } = req.body || {};
-    if (!fileBase64 || !targetLang) return res.status(400).json({ error: 'File aur target language chuno' });
+    const { fileBase64, mime, filename, targetLang, sourceUrl } = req.body || {};
+    if (!targetLang || (!fileBase64 && !sourceUrl)) return res.status(400).json({ error: 'File ya video ka link do, aur target language chuno' });
     const form = new FormData();
-    form.append('file', b64file(fileBase64, mime, filename || 'input'), filename || 'input.mp4');
+    if (sourceUrl) form.append('source_url', String(sourceUrl).slice(0, 2000));
+    else form.append('file', b64file(fileBase64, mime, filename || 'input'), filename || 'input.mp4');
     form.append('target_lang', String(targetLang).slice(0, 8));
     form.append('mode', 'automatic');
     const r = await fetch(EL + '/dubbing', { method: 'POST', headers: { 'xi-api-key': elKey(req) }, body: form });
