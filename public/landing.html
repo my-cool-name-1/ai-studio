@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Studio — Voice AI</title>
+<style>
+  :root{
+    --bg:#FAF6EF; --ink:#17352A; --green:#1E5631; --green2:#2E7D4F;
+    --card:#FFFFFF; --line:#DCE5DC; --soft:#5A6B60;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.55}
+  a{color:var(--green);text-decoration:none}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+  header{position:sticky;top:0;background:rgba(250,246,239,.95);border-bottom:1px solid var(--line);z-index:10}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .logo{font-size:22px;font-weight:bold;letter-spacing:.5px}
+  .logo span{color:var(--green2)}
+  .links{display:flex;gap:22px;font-family:Arial,sans-serif;font-size:15px}
+  .links a{color:var(--ink)}
+  .links a:hover{color:var(--green2)}
+  .kicker{text-align:center;letter-spacing:6px;font-family:Arial,sans-serif;font-size:13px;color:var(--green2);margin:56px 0 14px}
+  h1{font-size:44px;line-height:1.15;text-align:center;max-width:760px;margin:0 auto 18px}
+  .sub{text-align:center;font-size:19px;color:var(--soft);max-width:720px;margin:0 auto 26px}
+  .cta{text-align:center;margin-bottom:14px}
+  .btn{display:inline-block;padding:13px 26px;border-radius:30px;font-family:Arial,sans-serif;font-size:16px;margin:4px}
+  .btn-solid{background:var(--green);color:#fff}
+  .btn-line{border:2px solid var(--green);color:var(--green)}
+  .trusted{text-align:center;color:var(--soft);font-family:Arial,sans-serif;font-size:14px;margin-bottom:30px}
+  .arch{max-width:560px;margin:0 auto;background:linear-gradient(180deg,#EAF2E6,#FFFFFF);border:1px solid var(--line);border-radius:280px 280px 18px 18px;padding:54px 30px 34px;text-align:center}
+  .arch .mic{font-size:64px}
+  .arch p{font-family:Arial,sans-serif;color:var(--soft);font-size:15px}
+  .badge{display:inline-block;margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:7px 16px;font-family:Arial,sans-serif;font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:44px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center}
+  .stat b{font-size:30px;display:block}
+  .stat span{font-family:Arial,sans-serif;color:var(--soft);font-size:14px}
+  .sec-kicker{letter-spacing:5px;font-family:Arial,sans-serif;font-size:13px;color:var(--green2);margin:54px 0 10px}
+  h2{font-size:32px;margin-bottom:12px}
+  .sec-sub{color:var(--soft);font-size:17px;max-width:720px;margin-bottom:24px}
+  .numcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;margin-bottom:16px}
+  .numcard .n{color:var(--green2);font-size:26px;font-weight:bold}
+  .numcard p{font-size:18px;margin-top:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px}
+  .card .ic{font-size:28px}
+  .card .tag{font-family:Arial,sans-serif;color:var(--soft);font-size:14px;margin-left:8px}
+  .card h3{font-size:22px;margin:12px 0 8px}
+  .card p{color:var(--soft);font-size:16px}
+  .demo{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px}
+  .demo textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;font-family:Arial,sans-serif}
+  .demo label{font-family:Arial,sans-serif;font-size:13px;letter-spacing:2px;display:block;margin:16px 0 6px}
+  .demo input[type=range]{width:100%}
+  .demo select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:15px}
+  .demo .row{margin-top:18px}
+  .note{font-family:Arial,sans-serif;color:var(--soft);font-size:14px;margin-top:14px}
+  .price{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px}
+  .price h3{font-size:22px}
+  .price .amt{font-size:30px;margin:10px 0}
+  .price ul{list-style:none;font-family:Arial,sans-serif;font-size:15px;color:var(--soft)}
+  .price li{margin:7px 0}
+  .price li::before{content:"✓ ";color:var(--green2);font-weight:bold}
+  form.contact{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px}
+  form.contact label{font-family:Arial,sans-serif;font-size:13px;letter-spacing:2px;display:block;margin:14px 0 6px}
+  form.contact input,form.contact textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:15px;font-family:Arial,sans-serif}
+  footer{border-top:1px solid var(--line);margin-top:60px;padding:30px 0 40px;color:var(--soft);font-family:Arial,sans-serif;font-size:14px}
+  footer .cols{display:flex;flex-wrap:wrap;gap:30px;justify-content:space-between}
+  @media(max-width:640px){h1{font-size:32px}h2{font-size:26px}.links{gap:12px;font-size:13px}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav">
+  <div class="logo">AI <span>Studio</span></div>
+  <nav class="links">
+    <a href="#home">Home</a><a href="#solutions">Solutions</a><a href="#usecases">Use Cases</a>
+    <a href="#demo">Voice Demo</a><a href="#pricing">Pricing</a><a href="#contact">Contact</a>
+  </nav>
+</div></header>
+
+<div class="wrap" id="home">
+  <div class="kicker">VOICE TECHNOLOGY PLATFORM</div>
+  <h1>Give your brand a voice people love to hear.</h1>
+  <p class="sub">AI Studio turns text into natural, expressive speech. Build accessible, engaging voice experiences across every digital platform — with AI voices that sound genuinely human.</p>
+  <div class="cta">
+    <a class="btn btn-solid" href="#demo">▶ Try the Voice Demo</a>
+    <a class="btn btn-line" href="#contact">Book a Demo</a>
+  </div>
+  <p class="trusted">Trusted by product, media &amp; learning teams worldwide</p>
+  <div class="arch">
+    <div class="mic">🎙️</div>
+    <p>Voice recording studio — narrate, dub and publish in minutes.</p>
+    <div class="badge">🎧 120+ languages · natural AI voices</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>120+</b><span>Languages supported</span></div>
+    <div class="stat"><b>1000s</b><span>Creators building</span></div>
+    <div class="stat"><b>Fast</b><span>Streaming playback</span></div>
+    <div class="stat"><b>Studio</b><span>Grade voice quality</span></div>
+  </div>
+
+  <div class="sec-kicker">OUR MISSION</div>
+  <h2>Technology that sounds unmistakably human.</h2>
+  <p class="sec-sub">AI Studio builds voice AI that feels warm, precise, and alive. We help businesses and creators speak to their audiences in any language, at any scale — without losing the nuance that makes a voice worth listening to.</p>
+  <div class="numcard"><div class="n">01</div><p>Studio-grade neural voices that carry tone, pacing, and emotion.</p></div>
+  <div class="numcard"><div class="n">02</div><p>Simple tools and APIs built for creators and teams shipping at speed.</p></div>
+
+  <div class="sec-kicker" id="solutions">SOLUTIONS</div>
+  <h2>A complete voice stack for modern products.</h2>
+  <p class="sec-sub">From a single line of text to a full narration, every AI Studio tool is built to sound natural and scale with your ambitions.</p>
+  <div class="grid">
+    <div class="card"><span class="ic">🎚️</span><span class="tag">Core</span><h3>Text-to-Speech</h3><p>Convert any text into lifelike speech with control over tone, pacing, and pronunciation.</p></div>
+    <div class="card"><span class="ic">🎤</span><span class="tag">Signature</span><h3>Voice Studio</h3><p>Pick a voice that fits your brand and generate narration for videos, courses and podcasts.</p></div>
+    <div class="card"><span class="ic">🌍</span><span class="tag">Global</span><h3>Dubbing &amp; Languages</h3><p>Reach every audience in their own language — 120+ languages with natural delivery.</p></div>
+  </div>
+
+  <div class="sec-kicker" id="usecases">BUILT FOR EVERY VOICE</div>
+  <h2>One platform, countless ways to be heard.</h2>
+  <p class="sec-sub">Whatever you build, AI Studio helps it speak clearly, warmly, and in your audience's language.</p>
+  <div class="grid">
+    <div class="card"><span class="ic">🎬</span><h3>Media &amp; Entertainment</h3><p>Narrate, dub, and localize shows, ads, and games with voices that match the moment.</p></div>
+    <div class="card"><span class="ic">🎓</span><h3>Education &amp; E-learning</h3><p>Turn courses and lessons into engaging audio for every learner, in every language.</p></div>
+    <div class="card"><span class="ic">♿</span><h3>Accessibility</h3><p>Give screen readers, captions, and assistive tools a clear, natural voice.</p></div>
+    <div class="card"><span class="ic">🎧</span><h3>Customer Experience</h3><p>Friendly, human-sounding voice for support, updates and announcements.</p></div>
+  </div>
+
+  <div class="sec-kicker" id="demo">VOICE DEMO</div>
+  <h2>Try it right here.</h2>
+  <p class="sec-sub">Type anything, pick a voice, and press Speak.</p>
+  <div class="demo">
+    <textarea id="demoText">Namaste! AI Studio me aapka swagat hai. Type your own line here and press Speak.</textarea>
+    <label>VOICE</label>
+    <select id="demoVoice"></select>
+    <label>PITCH</label>
+    <input type="range" id="demoPitch" min="0" max="2" step="0.1" value="1">
+    <label>SPEED</label>
+    <input type="range" id="demoRate" min="0.5" max="2" step="0.1" value="1">
+    <div class="row">
+      <button class="btn btn-solid" type="button" onclick="speakNow()">▶ Speak</button>
+      <button class="btn btn-line" type="button" onclick="speechSynthesis.cancel()">■ Stop</button>
+    </div>
+    <p class="note">Preview uses your browser's built-in speech engine. Production voices are delivered through our studio tools.</p>
+  </div>
+
+  <div class="sec-kicker" id="pricing">PRICING</div>
+  <h2>Plans that scale with your voice.</h2>
+  <p class="sec-sub">Start free, upgrade as you grow. Every plan includes natural voices, streaming, and commercial rights.</p>
+  <div class="grid">
+    <div class="price"><h3>Starter</h3><p class="sec-sub" style="margin:4px 0 0">For exploring and personal projects.</p><div class="amt">₹0 <small>/mo</small></div>
+      <ul><li>10,000 characters / month</li><li>Access to standard voices</li><li>1 project workspace</li><li>Community support</li></ul>
+      <p style="margin-top:14px"><a href="#contact">Start Free →</a></p></div>
+    <div class="price"><h3>Creator</h3><p class="sec-sub" style="margin:4px 0 0">For creators publishing every week.</p><div class="amt">₹499 <small>/mo</small></div>
+      <ul><li>100,000 characters / month</li><li>All premium voices</li><li>10 project workspaces</li><li>Priority support</li></ul>
+      <p style="margin-top:14px"><a href="#contact">Go Creator →</a></p></div>
+    <div class="price"><h3>Pro</h3><p class="sec-sub" style="margin:4px 0 0">For teams and studios at scale.</p><div class="amt">₹1,499 <small>/mo</small></div>
+      <ul><li>500,000 characters / month</li><li>All voices + early access</li><li>Unlimited workspaces</li><li>Dedicated support</li></ul>
+      <p style="margin-top:14px"><a href="#contact">Go Pro →</a></p></div>
+  </div>
+
+  <div class="sec-kicker" id="contact">CONTACT</div>
+  <h2>Request a demo.</h2>
+  <p class="sec-sub">✉️ Replies within one day · 🎙️ Free live demo</p>
+  <form class="contact" onsubmit="event.preventDefault();document.getElementById('thanks').style.display='block';">
+    <label>NAME</label><input type="text" placeholder="Your name" required>
+    <label>WORK EMAIL</label><input type="email" placeholder="you@company.com" required>
+    <label>COMPANY</label><input type="text" placeholder="Company or project">
+    <label>HOW CAN WE HELP?</label><textarea rows="3" placeholder="Tell us about your voice project..."></textarea>
+    <div class="row" style="margin-top:16px"><button class="btn btn-solid" type="submit">Request a Demo</button></div>
+    <p class="note" id="thanks" style="display:none">Thank you! A voice specialist will be in touch within one business day.</p>
+  </form>
+</div>
+
+<footer><div class="wrap cols">
+  <div><div class="logo">AI <span>Studio</span></div>
+  <p style="margin-top:8px;max-width:320px">Natural, scalable voice technology for businesses and creators building for every digital platform.</p></div>
+  <div><b>Platform</b><br><a href="#solutions">Solutions</a><br><a href="#usecases">Use Cases</a><br><a href="#demo">Voice Demo</a><br><a href="#pricing">Pricing</a></div>
+  <div><b>Get in touch</b><br><a href="#contact">Request a Demo</a><br><span>Voices for every platform, every language, every audience.</span></div>
+</div>
+<div class="wrap" style="margin-top:18px">© 2026 AI Studio. All rights reserved.</div></footer>
+
+<script>
+  var voiceSel = document.getElementById('demoVoice');
+  function loadVoices(){
+    var vs = speechSynthesis.getVoices();
+    voiceSel.innerHTML = '';
+    vs.forEach(function(v,i){
+      var o = document.createElement('option');
+      o.value = i; o.textContent = v.name + ' (' + v.lang + ')';
+      voiceSel.appendChild(o);
+    });
+  }
+  if('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+  function speakNow(){
+    var u = new SpeechSynthesisUtterance(document.getElementById('demoText').value);
+    var vs = speechSynthesis.getVoices();
+    var v = vs[parseInt(voiceSel.value||'0',10)];
+    if(v) u.voice = v;
+    u.pitch = parseFloat(document.getElementById('demoPitch').value);
+    u.rate = parseFloat(document.getElementById('demoRate').value);
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }
+</script>
+</body>
+</html>
