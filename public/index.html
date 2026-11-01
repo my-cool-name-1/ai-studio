@@ -65,8 +65,9 @@ img,video{width:100%;border-radius:14px;margin-top:12px}
   </section>
 
   <section id="dub">
-    <p class="s" style="margin-top:0">Video ya audio daalo, dusri bhasha me dub ho jayega. Chhoti file rakho (max ~3MB) — bade video free hosting ki limit se atak sakte hain.</p>
-    <input type="file" id="dfile" accept="video/*,audio/*">
+    <p class="s" style="margin-top:0">Do tareeke hain: <b>(1) Link se dub</b> — YouTube/video ka link dalo, file size ki koi limit nahi. <b>(2) File se dub</b> — chhoti file (max ~3MB, chhote audio/short clip) ke liye; bade video free hosting ki limit se atak jate hain.</p>
+    <input id="durl" placeholder="Video ka link (YouTube etc.) — ya neeche file chuno">
+    <input type="file" id="dfile" accept="video/*,audio/*" style="margin-top:8px">
     <select id="dlang" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit;margin:8px 0">
       <option value="hi">Hindi me dub karo</option>
       <option value="en">English me dub karo</option>
@@ -230,12 +231,18 @@ async function apiRetry(path, body) {
 // Dub
 $('dgo').onclick = async () => {
   const f = $('dfile').files[0];
-  if (!f) { $('dout').innerHTML = '<p class="s">Pehle file chuno.</p>'; return; }
-  if (f.size > 3 * 1024 * 1024) { $('dout').innerHTML = '<p class="s">File badi hai (max ~3MB). Chhota clip daalo.</p>'; return; }
-  $('dgo').disabled = true; $('dout').innerHTML = '<p class="s">Upload ho raha hai…</p>';
+  const link = $('durl').value.trim();
+  if (!link && !f) { $('dout').innerHTML = '<p class="s">Pehle link dalo ya file chuno.</p>'; return; }
+  if (!link && f.size > 3 * 1024 * 1024) { $('dout').innerHTML = '<p class="s">File 3MB se badi hai — bade video ke liye upar link wala tareeka use karo.</p>'; return; }
+  $('dgo').disabled = true; $('dout').innerHTML = '<p class="s">Dub shuru ho raha hai…</p>';
   try {
-    const b64 = await fileB64(f);
-    let r = await api('/dub', { fileBase64: b64, mime: f.type, filename: f.name, targetLang: $('dlang').value });
+    let r;
+    if (link) {
+      r = await api('/dub', { sourceUrl: link, targetLang: $('dlang').value });
+    } else {
+      const b64 = await fileB64(f);
+      r = await api('/dub', { fileBase64: b64, mime: f.type, filename: f.name, targetLang: $('dlang').value });
+    }
     if (!r.dubbing_id) throw new Error(r.error || 'Dub shuru nahi hua');
     const dubId = r.dubbing_id, lang = $('dlang').value;
     $('dout').innerHTML = '<p class="s">Dubbing chal rahi hai… thoda time lagega.</p>';
